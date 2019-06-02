@@ -4,6 +4,8 @@ services:
     build: .
     image: tarpaulin-openapi
     restart: always
+    volumes:
+      - .:/usr/src/app/
     ports:
       - 8000:8000
     environment:
