@@ -10,13 +10,14 @@ router.post('/', extractUserFromJWT, async (req, res, next) => {
   if (validateAgainstSchema(req.body, userSchema)) {
     try {
       const userToInsert = extractValidFields(req.body, userSchema);
+      const user = await getUserByEmail(req.userEmail, false);
 
       let insertNeedsAdmin = false;
       let userIsAdmin = false;
       if(userToInsert.role == "admin" || userToInsert.role == "instructor") {
         insertNeedsAdmin = true;
-        if (req.user != null) {
-          userIsAdmin = await checkAdmin(req.user.id);
+        if (user != null) {
+          userIsAdmin = await checkAdmin(user.id);
         }
       }
 
@@ -74,11 +75,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res, next) => {
   try {
-    const user = req.user;
+    const user = await getUserByEmail(req.userEmail, false);
+    let userIsAdmin = false;
+    if (user.role == "admin") {
+      userIsAdmin = true;
+    }
 
-    if (user.id == req.params.id || user.admin) {
+    if (user.id == req.params.id || userIsAdmin) {
       const returnUser = await getUserByID(req.params.id, false);
       if (returnUser) {
         let response = {};
@@ -105,7 +110,6 @@ router.get('/:id', requireAuth, async (req, res) => {
       error: "Unable to fetch user.  Please try again later."
     });
   }
-
 })
 
 

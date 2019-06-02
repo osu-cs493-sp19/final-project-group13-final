@@ -46,11 +46,16 @@ function getUserByEmail(email, withPassword) {
         if (err) {
           reject(err);
         } else {
-          if (withPassword) {
-            resolve(results[0]);
+          if (results.length > 0) {
+            if (withPassword) {
+              resolve(results[0]);
+            }
+            else {
+              results[0].password = "";
+              resolve(results[0]);
+            }
           }
           else {
-            results[0].password = "";
             resolve(results[0]);
           }
         }
@@ -69,11 +74,16 @@ function getUserByID(id, withPassword) {
         if (err) {
           reject(err);
         } else {
-          if (withPassword) {
-            resolve(results[0]);
+          if (results.length > 0) {
+            if (withPassword) {
+              resolve(results[0]);
+            }
+            else {
+              results[0].password = "";
+              resolve(results[0]);
+            }
           }
           else {
-            results[0].password = "";
             resolve(results[0]);
           }
         }
