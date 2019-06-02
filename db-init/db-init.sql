@@ -40,7 +40,7 @@ CREATE TABLE `users` (
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES
-  (0,'Admin','admin@tarpaulin.com','$2a$08$Y00/JO/uN9n0dHKuudRX2eKksWMIHXDLzHWKuz/K67alAYsZRRike','admin'),
+  (0,'Admin','admin@tarpaulin.com','$2a$08$Y00/JO/uN9n0dHKuudRX2eKksWMIHXDLzHWKuz/K67alAYsZRRike','admin')
   (1,'Example 1','user1@example.com','$2a$08$Y00/JO/uN9n0dHKuudRX2eKksWMIHXDLzHWKuz/K67alAYsZRRike','student'),
   (2,'Example 2','user2@example.com','$2a$08$Y00/JO/uN9n0dHKuudRX2eKksWMIHXDLzHWKuz/K67alAYsZRRike','instructor'),
   (3,'Example 3','user3@example.com','$2a$08$Y00/JO/uN9n0dHKuudRX2eKksWMIHXDLzHWKuz/K67alAYsZRRike','student'),
@@ -87,7 +87,6 @@ CREATE TABLE `courses` (
 LOCK TABLES `courses` WRITE;
 /*!40000 ALTER TABLE `courses` DISABLE KEYS */;
 INSERT INTO `courses` VALUES
-  (0,'ENGR','202','General Engineering''Su20','6'),
   (1,'CS','444','Operating Systems II','F19','2'),
   (2,'MTH','306','Linear Algebra','W20','4'),
   (3,'ENGR','202','General Engineering''Sp20','6'),
@@ -98,7 +97,8 @@ INSERT INTO `courses` VALUES
   (8,'MTH','306','Linear Algebra','Su20','4'),
   (9,'ENGR','202','General Engineering''F19','6'),
   (10,'CS','444','Operating Systems II','W20','2'),
-  (11,'MTH','306','Linear Algebra','Sp20','4');
+  (11,'MTH','306','Linear Algebra','Sp20','4'),
+  (12,'ENGR','202','General Engineering''Su20','6');
 /*!40000 ALTER TABLE `courses` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -130,7 +130,6 @@ CREATE TABLE `assignments` (
 LOCK TABLES `assignments` WRITE;
 /*!40000 ALTER TABLE `assignments` DISABLE KEYS */;
 INSERT INTO `assignments` VALUES
-  (0,'12','Example Assignment 35',97,'2019-06-02T15:45:20'),
   (1,'1','Example Assignment 0',80,'2019-06-02T15:45:20'),
   (2,'2','Example Assignment 1',81,'2019-06-02T15:45:20'),
   (3,'3','Example Assignment 2',82,'2019-06-02T15:45:20'),
@@ -165,7 +164,8 @@ INSERT INTO `assignments` VALUES
   (32,'8','Example Assignment 31',93,'2019-06-02T15:45:20'),
   (33,'9','Example Assignment 32',94,'2019-06-02T15:45:20'),
   (34,'10','Example Assignment 33',95,'2019-06-02T15:45:20'),
-  (35,'11','Example Assignment 34',96,'2019-06-02T15:45:20');
+  (35,'11','Example Assignment 34',96,'2019-06-02T15:45:20'),
+  (36,'12','Example Assignment 35',97,'2019-06-02T15:45:20');
 /*!40000 ALTER TABLE `assignments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -197,8 +197,7 @@ CREATE TABLE `submissions` (
 LOCK TABLES `submissions` WRITE;
 /*!40000 ALTER TABLE `submissions` DISABLE KEYS */;
 INSERT INTO `submissions` VALUES
-  (0,'36','15','2019-06-02T15:53:06',NULL),
-  (1,'1','1','2019-06-02T15:53:06',NULL),
+    (1,'1','1','2019-06-02T15:53:06',NULL),
   (2,'2','3','2019-06-02T15:53:06',NULL),
   (3,'3','5','2019-06-02T15:53:06',NULL),
   (4,'4','7','2019-06-02T15:53:06',NULL),
@@ -268,7 +267,8 @@ INSERT INTO `submissions` VALUES
   (68,'32','7','2019-06-02T15:53:06',NULL),
   (69,'33','9','2019-06-02T15:53:06',NULL),
   (70,'34','11','2019-06-02T15:53:06',NULL),
-  (71,'35','13','2019-06-02T15:53:06',NULL);
+  (71,'35','13','2019-06-02T15:53:06',NULL),
+  (72,'36','15','2019-06-02T15:53:06',NULL);
 /*!40000 ALTER TABLE `submissions` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
