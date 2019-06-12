@@ -197,7 +197,7 @@ exports.deleteCourseById = deleteCourseById;
 function getCoursesByOwnerId(id) {
   return new Promise((resolve, reject) => {
     mysqlPool.query(
-      'SELECT * FROM courses WHERE ownerid = ?',
+      'SELECT * FROM courses WHERE instructorid = ?',
       [ id ],
       (err, results) => {
         if (err) {
@@ -210,3 +210,75 @@ function getCoursesByOwnerId(id) {
   });
 }
 exports.getCoursesByOwnerId = getCoursesByOwnerId;
+
+/*
+ * Gets a list of courses that a student is in
+ *
+ */
+function getCoursesByStudentId(id) {
+  return new Promise((resolve,reject) => {
+    mysqlPool.query(
+      'SELECT * FROM courses INNER JOIN enrollment ON courses.id = enrollment.courseid WHERE enrollment.studentid = ?',
+      [ id ],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        } 
+      } 
+    );
+  });
+}
+exports.getCoursesByStudentId = getCoursesByStudentId;
+
+function getStudentsByCourseId(id) {
+  return new Promise((resolve,reject) => {
+    mysqlPool.query(
+      'SELECT * FROM users INNER JOIN enrollment ON users.id = enrollment.studentid WHERE enrollment.courseid = ?',
+      [ id ],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (results.length > 0) {
+              var i;
+              for(i = 0; i < results.length; i++)
+              {
+                results[i].password = "";
+                delete results[i].id;
+              }
+          }
+          resolve(results);
+        } 
+      } 
+    );
+  });
+}
+exports.getStudentsByCourseId = getStudentsByCourseId;
+
+function getStudentsByCourseIdCsv(id) {
+  return new Promise((resolve,reject) => {
+    mysqlPool.query(
+      'SELECT * FROM users INNER JOIN enrollment ON users.id = enrollment.studentid WHERE enrollment.courseid = ?',
+      [ id ],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (results.length > 0) {
+              var i;
+              for(i = 0; i < results.length; i++)
+              {
+                delete results[i].id;
+                delete results[i].password;
+                delete results[i].courseid;
+                delete results[i].role;              }
+          }
+          resolve(results);
+        } 
+      } 
+    );
+  });
+}
+exports.getStudentsByCourseIdCsv = getStudentsByCourseIdCsv;

@@ -178,7 +178,7 @@ CREATE TABLE `submissions` (
   `assignmentid` mediumint(9) NOT NULL,
   `studentid` mediumint(9) NOT NULL,
   `timestamp` varchar(255) NOT NULL,
-  `file` text,
+  `file` MEDIUMBLOB,
   PRIMARY KEY (`id`),
   KEY `idx_studentid` (`studentid`),
   KEY `idx_assignmentid` (`assignmentid`),
@@ -270,6 +270,61 @@ INSERT INTO `submissions` VALUES
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
+
+--
+-- Table structure for table `submissions`
+--
+
+DROP TABLE IF EXISTS `enrollment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `enrollment` (
+  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `studentid` mediumint(9) NOT NULL,
+  `courseid` mediumint(9) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_studentid` (`studentid`),
+  KEY `idx_courseid` (`courseid`),
+  CONSTRAINT `enrollment_ibfk_1` FOREIGN KEY (`studentid`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `enrollment_ibfk_2` FOREIGN KEY (`courseid`) REFERENCES `courses` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `enrollment`
+--
+
+LOCK TABLES `enrollment` WRITE;
+/*!40000 ALTER TABLE `enrollment` DISABLE KEYS */;
+INSERT INTO `enrollment` VALUES
+  (1,1,1),
+  (2,1,5),
+  (3,1,9),
+  (4,3,3),
+  (5,3,7),
+  (6,3,11),
+  (7,5,5),
+  (8,5,9),
+  (9,5,13),
+  (10,7,7),
+  (11,7,11),
+  (12,7,15),
+  (13,9,9),
+  (14,9,13),
+  (15,9,1),
+  (16,11,11),
+  (17,11,15),
+  (18,11,3),
+  (19,13,13),
+  (20,13,1),
+  (21,13,5),
+  (22,15,15),
+  (23,15,3),
+  (24,15,7);
+/*!40000 ALTER TABLE `enrollment` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
@@ -279,4 +334,3 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2018-05-16  6:47:05
->>>>>>> master

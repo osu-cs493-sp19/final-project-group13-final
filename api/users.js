@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { insertNewUser, userSchema, validateUser, getUserByEmail, getUserByID } = require('../models/user');
 const { generateAuthToken, requireAuth, checkAdmin, extractUserFromJWT } = require('../lib/auth');
 const { extractValidFields, validateAgainstSchema } = require('../lib/validation');
+const { getCoursesByStudentId } = require('../models/course');
 
 
 router.post('/', extractUserFromJWT, async (req, res, next) => {
@@ -88,11 +89,8 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       if (returnUser) {
         let response = {};
         response.user = returnUser;
-        if (returnUser.role == "instructor") {
-          response.courses = "Placeholder";
-        }
-        else if (returnUser.role == "student") {
-          response.courses = "Placeholder";
+        if (returnUser.role == "student") {
+          response.courses = await getCoursesByStudentId(parseInt(returnUser.id));
         }
         res.status(200).send(response);
       } else {
