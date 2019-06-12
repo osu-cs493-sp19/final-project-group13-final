@@ -178,7 +178,7 @@ CREATE TABLE `submissions` (
   `assignmentid` mediumint(9) NOT NULL,
   `studentid` mediumint(9) NOT NULL,
   `timestamp` varchar(255) NOT NULL,
-  `file` text,
+  `file` mediumblob,
   PRIMARY KEY (`id`),
   KEY `idx_studentid` (`studentid`),
   KEY `idx_assignmentid` (`assignmentid`),
