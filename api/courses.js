@@ -9,7 +9,6 @@ const { userSchema, insertNewUser, getUserById, validateUser } = require('../mod
 const { validateAgainstSchema } = require('../lib/validation');
 const { generateAuthToken, requireAuth, checkAdmin } = require('../lib/auth');
 const { getAssignmentsByCourseId } = require('../models/assignment');
-const { getStudentsByCourseId } = require('../models/course');
 const {
   CourseSchema,
   getCoursesPage,
@@ -17,7 +16,10 @@ const {
   getCourseDetailsById,
   replaceCourseById,
   deleteCourseById,
-  getCoursesByOwnerdId
+  getCoursesByOwnerId,
+  getStudentsByCourseId,
+  addToCourseRoster,
+  removeFromCourseRoster
 } = require('../models/course');
 
 /*
@@ -38,6 +40,35 @@ router.get('/', async (req, res) => {
     if (coursePage.page > 1) {
       coursePage.links.prevPage = `/courses?page=${coursePage.page - 1}`;
       coursePage.links.firstPage = '/courses?page=1';
+    }
+    var i;
+    if (req.query.subject) {
+      for(i=0;i<coursePage.courses.length;i++)
+      {
+        console.log("yeet");
+        if(coursePage.courses[i].subject != req.query.subject) 
+        {
+          delete coursePage.courses[i];
+        }
+      }
+    }
+    if (req.query.number) {
+      for(i=0;i<coursePage.courses.length;i++)
+      {
+        if(coursePage.courses[i].number != req.query.number) 
+        {
+          delete coursePage.courses[i];
+        }
+      }
+    }
+    if (req.query.term) {
+      for(i=0;i<coursePage.courses.length;i++)
+      {
+        if(coursePage.courses[i].term != req.query.term) 
+        {
+          delete coursePage.courses[i];
+        }
+      }
     }
     res.status(200).send(coursePage);
   } catch (err) {
@@ -169,6 +200,41 @@ router.get('/:id/roster', async (req, res, next) => {
     res.status(500).send({
       error: "Unable to fetch course.  Please try again later."
     });
+  }
+});
+
+
+/*
+ * Route to update course roster.
+ * Will add and remove.
+ */
+router.post('/:id/students', async (req, res, next) => {
+  try {
+    const adds = req.body.add;
+    const rems = req.body.remove;
+    const id = req.params.id;
+    if(adds) {
+      var i;
+      for (i=0;i<adds.length;i++) {
+        await addToCourseRoster(parseInt(id),parseInt(adds[i]));
+      }
+    }
+    if(rems) {
+      var i;
+      for(i=0;i<rems.length;i++) {
+        await removeFromCourseRoster(parseInt(rems[i]));
+      }
+    }
+    if(!rems && !adds) {
+      res.status(400).send("The request body was either not present or did not contain the fields described above.");
+    } else {
+      res.status(201).send();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      error: "Unable to fetch course.  Please try again later."
+    })
   }
 });
 
