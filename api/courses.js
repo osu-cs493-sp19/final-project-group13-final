@@ -4,7 +4,7 @@
 
 const router = require('express').Router();
 
-const fs = require('fs');
+const fs = require('file-system');
 const { userSchema, insertNewUser, getUserById, validateUser } = require('../models/user');
 const { validateAgainstSchema } = require('../lib/validation');
 const { generateAuthToken, requireAuth, checkAdmin } = require('../lib/auth');
@@ -21,6 +21,20 @@ const {
   addToCourseRoster,
   removeFromCourseRoster
 } = require('../models/course');
+
+const { getUserByEmail } = require('../models/user');
+
+function removeTempFile(filepath) {
+  return new Promise((resolve, reject) => {
+    fs.unlink(filepath, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 /*
  * Route to return a paginated list of courses.
@@ -82,31 +96,45 @@ router.get('/', async (req, res) => {
  * Route to create a new course.
  */
 router.post('/', requireAuth, async (req, res) => {
-  if(req.params.id == req.user || await checkAdmin(req.user)) {
-    if (validateAgainstSchema(req.body, CourseSchema)) {
-      try {
-        const id = await insertNewCourse(req.body);
-        res.status(201).send({
-          id: id,
-          links: {
-            course: `/courses/${id}`
-          }
-        });
-      } catch (err) {
-        console.error(err);
-        res.status(500).send({
-          error: "Error inserting course into DB.  Please try again later."
+  const user = await getUserByEmail(req.userEmail, false);
+  let userIsAdmin = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  }
+
+  if (!userIsAdmin) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an administrator."
+    });
+  }
+
+  else {
+    if (req.params.id == req.user || await checkAdmin(req.user)) {
+      if (validateAgainstSchema(req.body, CourseSchema)) {
+        try {
+          const id = await insertNewCourse(req.body);
+          res.status(201).send({
+            id: id,
+            links: {
+              course: `/courses/${id}`
+            }
+          });
+        } catch (err) {
+          console.error(err);
+          res.status(500).send({
+            error: "Error inserting course into DB.  Please try again later."
+          });
+        }
+      } else {
+        res.status(400).send({
+          error: "Request body is not a valid course object."
         });
       }
     } else {
-      res.status(400).send({
-        error: "Request body is not a valid course object."
+      res.status(403).send({
+        error: "Request unauthorized."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "Request unauthorized."
-    });
   }
 });
 
@@ -151,54 +179,103 @@ router.get('/:id/assignments', async (req, res, next) => {
 /*
  * Route to fetch all students for a specific course
  */
-router.get('/:id/students', async (req, res, next) => {
-  try {
-    const students = await getStudentsByCourseId(parseInt(req.params.id));
-    if (students) {
-      res.status(200).send(students);
-    } else {
-      next();
+router.get('/:id/students', requireAuth, async (req, res, next) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsCourse = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const course = await getCourseDetailsById(req.params.id);
+    if (course.instructorid == user.id) {
+      userOwnsCourse = true;
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      error: "Unable to fetch course.  Please try again later."
+  }
+
+  if (!userIsAdmin && !userOwnsCourse) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this course or an administrator."
     });
+  }
+
+  else {
+    try {
+      const students = await getStudentsByCourseId(parseInt(req.params.id));
+      if (students) {
+        res.status(200).send(students);
+      } else {
+        next();
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Unable to fetch course.  Please try again later."
+      });
+    }
   }
 });
 
 /*
  * Route to fetch all students for a specific course, send as csv
  */
-router.get('/:id/roster', async (req, res, next) => {
-  try {
-    const students = await getStudentsByCourseId(parseInt(req.params.id));
-    if (students) {
-      var i;
-      var str = "";
-      //create csv
-      for(i=0;i<students.length;i++) {
-        for(var k in students[i]) {
-          str += students[i][k] + ",";
-        }
-        str += "\n";
-      }
-      //strip off newline and comma
-      str = str.substring(0, str.length - 2);
-
-      //write file
-      fs.writeFile('roster.csv', str, (err) => {
-        if(err) console.log(err);
-      });
-      //res.status(200).send(str);
-    } else {
-      next();
+router.get('/:id/roster', requireAuth, async (req, res, next) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsCourse = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const course = await getCourseDetailsById(req.params.id);
+    if (course.instructorid == user.id) {
+      userOwnsCourse = true;
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      error: "Unable to fetch course.  Please try again later."
+  }
+
+  if (!userIsAdmin && !userOwnsCourse) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this course or an administrator."
     });
+  }
+
+  else {
+    try {
+      const students = await getStudentsByCourseId(parseInt(req.params.id));
+      if (students) {
+        var i;
+        var str = "";
+        //create csv
+        for (i = 0; i < students.length; i++) {
+          for (var k in students[i]) {
+            str += students[i][k] + ",";
+          }
+          str += "\n";
+        }
+        //strip off newline and comma
+        str = str.substring(0, str.length - 2);
+
+        //write file
+        fs.writeFile('roster.csv', str, (err) => {
+          if (err) console.log(err);
+        });
+        const src = fs.createReadStream('roster.csv');
+        res.setHeader('Content-Type', 'text/csv');
+        src.pipe(res);
+        
+
+        removeTempFile('roster.csv');
+
+        //res.status(200).send(str);
+      } else {
+        next();
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Unable to fetch course.  Please try again later."
+      });
+    }
   }
 });
 
@@ -207,7 +284,28 @@ router.get('/:id/roster', async (req, res, next) => {
  * Route to update course roster.
  * Will add and remove.
  */
-router.post('/:id/students', async (req, res, next) => {
+router.post('/:id/students', requireAuth, async (req, res, next) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsCourse = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const course = await getCourseDetailsById(req.params.id);
+    if (course.instructorid == user.id) {
+      userOwnsCourse = true;
+    }
+  }
+
+  if (!userIsAdmin && !userOwnsCourse) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this course or an administrator."
+    });
+  }
+
+  else {
+
   try {
     const adds = req.body.add;
     const rems = req.body.remove;
@@ -235,14 +333,34 @@ router.post('/:id/students', async (req, res, next) => {
       error: "Unable to fetch course.  Please try again later."
     })
   }
+  }
 });
 
 /*
  * Route to update data for a course.
  */
 router.patch('/:id', requireAuth, async (req, res, next) => {
-  if(req.params.id == req.user || await checkAdmin(req.user)) {
-    if (req.body.instructorid && (req.body.subject || req.body.title || req.body.number || req.body.term)){
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsCourse = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const course = await getCourseDetailsById(req.params.id);
+    if (course.instructorid == user.id) {
+      userOwnsCourse = true;
+    }
+  }
+
+  if (!userIsAdmin && !userOwnsCourse) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this course or an administrator."
+    });
+  }
+
+  else {
+    if (req.body.instructorid && (req.body.subject || req.body.title || req.body.number || req.body.term)) {
       try {
         const id = parseInt(req.params.id)
         const updateSuccessful = await replaceCourseById(id, req.body);
@@ -266,35 +384,45 @@ router.patch('/:id', requireAuth, async (req, res, next) => {
         error: "The request body was either not present or did not contain any fields related to Course objects."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
-    });
   }
 });
 
 /*
  * Route to delete a course.
  */
-router.delete('/:id', async (req, res, next) => {
-  if (req.params.id == req.user || await checkAdmin(req.user)) {
-    try {
-      const deleteSuccessful = await deleteCourseById(parseInt(req.params.id));
-      if (deleteSuccessful) {
-        res.status(204).end();
-      } else {
-        next();
+router.delete('/:id', requireAuth, async (req, res, next) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  let userIsAdmin = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  }
+
+  if (!userIsAdmin) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an administrator."
+    });
+  }
+
+  else {
+    if (req.params.id == req.user || await checkAdmin(req.user)) {
+      try {
+        const deleteSuccessful = await deleteCourseById(parseInt(req.params.id));
+        if (deleteSuccessful) {
+          res.status(204).end();
+        } else {
+          next();
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Unable to delete course.  Please try again later."
+        });
       }
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Unable to delete course.  Please try again later."
+    } else {
+      res.status(403).send({
+        error: "Request unauthorized."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "Request unauthorized."
-    });
   }
 });
 
