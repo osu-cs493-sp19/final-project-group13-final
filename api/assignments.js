@@ -141,15 +141,48 @@ router.get('/:id/submissions', requireAuth, async (req, res) => {
         submissions = await getSubmissionsByAssignmentID(req.params.id);
       }
       if (submissions) {
-        let results = [];
+        let trimmed = [];
         submissions.forEach(submission => {
           submission.url = "/media/submissions/" + submission.id;
           delete submission.id;
           delete submission.file;
-          results.push(submission);
+          trimmed.push(submission);
         });
+        let page = parseInt(req.query.page);
+        console.log("==page : ", page);
+        const pageLength = 5;
+        
+        let last = trimmed.length / pageLength;
+        last = Math.ceil(last);
+
+        if (isNaN(page)) {
+          page = 1;
+        }
+        console.log("==page : ", page);
+        if (page >= last) {
+          console.log("Requested page outside of range, returning last page instead.");
+          page = last;
+          isLast = true;
+        }
+        else if ( page < 1 ) {
+          console.log("Requested page outside of range, returing first page isntead.");
+          page = 1;
+        }
+
+        const start = (page-1)*pageLength;
+        const end = start+pageLength;
+
+
         res.status(201).send({
-          submissions
+          page: page,
+          totalPage: last,
+          isLast: isLast,
+          submissionsPerPage: pageLength,
+          totalSubmissions: trimmed.length,
+          submissions: trimmed.slice(start,end),
+          prevPage: `/assignments/${req.params.id}/submissions?page=${page-1}`,
+          nextPage: `/assignments/${req.params.id}/submissions?page=${page+1}`,
+          last: `/assignments/${req.params.id}/submissions?page=${last}`,
         });
       } else {
         res.status(404).send({
@@ -169,33 +202,56 @@ router.get('/:id/submissions', requireAuth, async (req, res) => {
  * Route to create a new assignment.
  */
 router.post('/', requireAuth, async (req, res) => {
-  //if(req.params.id == req.user || await checkAdmin(req.user)) {
-  if (validateAgainstSchema(req.body, AssignmentSchema)) {
-    try {
-      const id = await insertNewAssignment(req.body);
-      res.status(201).send({
-        id: id,
-        links: {
-          assignment: `/assignments/${id}`,
-          course: `/courses/${req.body.courseid}`
-        }
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Error inserting assignment into DB.  Please try again later."
-      });
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsAssignment = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const assignment = await getAssignmentById(req.params.id);
+    const course = await getCourseDetailsById(assignment.courseid);
+    if (course.instructorid == user.id) {
+      userOwnsAssignment = true;
     }
-  } else {
-    res.status(400).send({
-      error: "The request body was either not present or did not contain a valid Assignment object."
+  }
+
+  if (!userIsAdmin && !userOwnsAssignment) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this assignment or an administrator."
     });
   }
-  //} else {
-  //res.status(403).send({
-  //error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
-  //});
-  //}
+
+  else {
+
+    //if(req.params.id == req.user || await checkAdmin(req.user)) {
+    if (validateAgainstSchema(req.body, AssignmentSchema)) {
+      try {
+        const id = await insertNewAssignment(req.body);
+        res.status(201).send({
+          id: id,
+          links: {
+            assignment: `/assignments/${id}`,
+            course: `/courses/${req.body.courseid}`
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Error inserting assignment into DB.  Please try again later."
+        });
+      }
+    } else {
+      res.status(400).send({
+        error: "The request body was either not present or did not contain a valid Assignment object."
+      });
+    }
+    //} else {
+    //res.status(403).send({
+    //error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
+    //});
+    //}
+  }
 });
 
 /*
@@ -221,47 +277,70 @@ router.get('/:id', async (req, res, next) => {
  * Route to update a assignment.
  */
 router.patch('/:id', async (req, res, next) => {
-  if (req.body.courseid && (req.body.title || req.body.due || req.body.points)) {
-    try {
-      /*
-       * Make sure the courseid on the updated assigment is the same as
-       * the existing assignment. If it doesn't, respond with a 403 error.  If the
-       * assignment doesn't already exist, respond with a 404 error.
-       */
-      const id = parseInt(req.params.id);
-      const existingAssignment = await getAssignmentById(id);
-      if (existingAssignment) {
-        //make sure courseid exists for existing assignment
-        if (req.body.courseid === existingAssignment.courseid) {
-          const updateSuccessful = await replaceAssignmentById(id, req.body);
-          if (updateSuccessful) {
-            res.status(200).send({
-              links: {
-                course: `/courses/${req.body.courseid}`,
-                assignment: `/assignments/${id}`
-              }
-            });
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsAssignment = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const assignment = await getAssignmentById(req.params.id);
+    const course = await getCourseDetailsById(assignment.courseid);
+    if (course.instructorid == user.id) {
+      userOwnsAssignment = true;
+    }
+  }
+
+  if (!userIsAdmin && !userOwnsAssignment) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this assignment or an administrator."
+    });
+  }
+
+  else {
+
+    if (req.body.courseid && (req.body.title || req.body.due || req.body.points)) {
+      try {
+        /*
+         * Make sure the courseid on the updated assigment is the same as
+         * the existing assignment. If it doesn't, respond with a 403 error.  If the
+         * assignment doesn't already exist, respond with a 404 error.
+         */
+        const id = parseInt(req.params.id);
+        const existingAssignment = await getAssignmentById(id);
+        if (existingAssignment) {
+          //make sure courseid exists for existing assignment
+          if (req.body.courseid === existingAssignment.courseid) {
+            const updateSuccessful = await replaceAssignmentById(id, req.body);
+            if (updateSuccessful) {
+              res.status(200).send({
+                links: {
+                  course: `/courses/${req.body.courseid}`,
+                  assignment: `/assignments/${id}`
+                }
+              });
+            } else {
+              next();
+            }
           } else {
-            next();
+            res.status(403).send({
+              error: "The request to this courseid is either unauthorized or does not exist."
+            })
           }
         } else {
-          res.status(403).send({
-            error: "The request to this courseid is either unauthorized or does not exist."
-          })
+          next();
         }
-      } else {
-        next();
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Unable to update assignment.  Please try again later."
+        });
       }
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Unable to update assignment.  Please try again later."
+    } else {
+      res.status(400).send({
+        error: "The request body was either not present or did not contain any fields related to Assignment objects."
       });
     }
-  } else {
-    res.status(400).send({
-      error: "The request body was either not present or did not contain any fields related to Assignment objects."
-    });
   }
 });
 
@@ -269,25 +348,47 @@ router.patch('/:id', async (req, res, next) => {
  * Route to delete a assignment.
  */
 router.delete('/:id', async (req, res, next) => {
-  //if (req.params.id == req.user || await checkAdmin(req.user)) {
-  try {
-    const deleteSuccessful = await deleteAssignmentById(parseInt(req.params.id));
-    if (deleteSuccessful) {
-      res.status(204).end();
-    } else {
-      next();
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsAssignment = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const assignment = await getAssignmentById(req.params.id);
+    const course = await getCourseDetailsById(assignment.courseid);
+    if (course.instructorid == user.id) {
+      userOwnsAssignment = true;
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      error: "Unable to delete assignment.  Please try again later."
+  }
+
+  if (!userIsAdmin && !userOwnsAssignment) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this assignment or an administrator."
     });
   }
+
+  else {
+    //if (req.params.id == req.user || await checkAdmin(req.user)) {
+    try {
+      const deleteSuccessful = await deleteAssignmentById(parseInt(req.params.id));
+      if (deleteSuccessful) {
+        res.status(204).end();
+      } else {
+        next();
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Unable to delete assignment.  Please try again later."
+      });
+    }
   //} else {
   //res.status(403).send({
   //error: "Request unauthorized."
   //});
   //}
+  }
 });
 
 module.exports = router;
