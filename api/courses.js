@@ -97,7 +97,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 /*
- * Route to replace data for a course.
+ * Route to update data for a course.
  */
 router.patch('/:id', requireAuth, async (req, res, next) => {
   if(req.params.id == req.user || await checkAdmin(req.user)) {
