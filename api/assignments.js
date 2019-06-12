@@ -19,8 +19,11 @@ const {
   deleteAssignmentById
 } = require('../models/assignment');
 
+const { getCourseDetailsById, getCoursesByStudentId } = require('../models/course');
+const { getUserByEmail } = require('../models/user');
 
-const { saveSubmission, submissionSchema,  getSubmissionsByAssignmentID, getSubmissionsByAssignmentAndStudentID } = require('../models/submission');
+
+const { saveSubmission, submissionSchema, getSubmissionsByAssignmentID, getSubmissionsByAssignmentAndStudentID } = require('../models/submission');
 
 const fileTypes = {
   'image/jpeg': 'jpg',
@@ -56,34 +59,80 @@ function removeUploadedFile(file) {
   });
 }
 
-router.post('/:id/submissions', upload.single('file'), async (req, res) => {
-  if (validateAgainstSchema(req.body, submissionSchema) && req.file) {
-    try {
-      const submission = {
-        studentid: req.body.studentid,
-        assignmentid: req.params.id,
-        file: req.file 
-      }
-      const id = await saveSubmission(submission);
-      await removeUploadedFile(req.file);
+router.post('/:id/submissions', requireAuth, upload.single('file'), async (req, res) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  let userIsAdmin = false;
+  let userEnrolledInCourse = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "student") {
+    const assignment = await getAssignmentById(req.params.id);
+    const courseid = assignment.courseid;
+    const courses = await getCoursesByStudentId(user.id);
 
-      res.status(201).send({
-        id: id,
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Error inserting submission into DB.  Please try again later."
+    courses.forEach(course => {
+      if (course.id == courseid) {
+        userEnrolledInCourse = true;
+      }
+    });
+  }
+
+  if (!userIsAdmin && !userEnrolledInCourse) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be a student who is enrolled in this class or an administrator."
+    });
+  }
+  else {
+
+    if (validateAgainstSchema(req.body, submissionSchema) && req.file) {
+      try {
+        const submission = {
+          studentid: req.body.studentid,
+          assignmentid: req.params.id,
+          file: req.file
+        }
+        const id = await saveSubmission(submission);
+        await removeUploadedFile(req.file);
+
+        res.status(201).send({
+          id: id,
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({
+          error: "Error inserting submission into DB.  Please try again later."
+        });
+      }
+    } else {
+      res.status(400).send({
+        error: "Request body is not a valid submission object"
       });
     }
-  } else {
-    res.status(400).send({
-      error: "Request body is not a valid submission object"
-    });
   }
 });
 
-router.get('/:id/submissions', async (req, res) => {
+router.get('/:id/submissions', requireAuth, async (req, res) => {
+  const user = await getUserByEmail(req.userEmail, false);
+  console.log(user);
+  let userIsAdmin = false;
+  let userOwnsAssignment = false;
+  if (user.role == "admin") {
+    userIsAdmin = true;
+  } else if (user.role == "instructor") {
+    const assignment = await getAssignmentById(req.params.id);
+    const course = await getCourseDetailsById(assignment.courseid);
+    if (course.instructorid == user.id) {
+      userOwnsAssignment = true;
+    }
+  }
+
+  if (!userIsAdmin && !userOwnsAssignment) {
+    res.status(403).send({
+      error: "The request was not made by an authenticated User. The user must be an instructor who owns this assignment or an administrator."
+    });
+  }
+
+  else {
     try {
       let submissions = {};
       if (req.query.studentid) {
@@ -91,7 +140,7 @@ router.get('/:id/submissions', async (req, res) => {
       } else {
         submissions = await getSubmissionsByAssignmentID(req.params.id);
       }
-      if (submissions) { 
+      if (submissions) {
         let results = [];
         submissions.forEach(submission => {
           submission.url = "/media/submissions/" + submission.id;
@@ -99,21 +148,21 @@ router.get('/:id/submissions', async (req, res) => {
           delete submission.file;
           results.push(submission);
         });
-        console.log(submissions);
         res.status(201).send({
           submissions
         });
       } else {
         res.status(404).send({
-          error:"Specified Assignment id not found."
+          error: "Specified Assignment id not found."
         });
-        }
       }
-      catch(err){
+    }
+    catch (err) {
       res.status(500).send({
         error: "Error getting submission into DB.  Please try again later."
       });
     }
+  }
 });
 
 /*
@@ -121,31 +170,31 @@ router.get('/:id/submissions', async (req, res) => {
  */
 router.post('/', requireAuth, async (req, res) => {
   //if(req.params.id == req.user || await checkAdmin(req.user)) {
-    if (validateAgainstSchema(req.body, AssignmentSchema)) {
-      try {
-          const id = await insertNewAssignment(req.body);
-          res.status(201).send({
-            id: id,
-            links: {
-              assignment: `/assignments/${id}`,
-              course: `/courses/${req.body.courseid}`
-            }
-          });
-      } catch (err) {
-        console.error(err);
-        res.status(500).send({
-          error: "Error inserting assignment into DB.  Please try again later."
-        });
-      }
-    } else {
-      res.status(400).send({
-        error: "The request body was either not present or did not contain a valid Assignment object."
+  if (validateAgainstSchema(req.body, AssignmentSchema)) {
+    try {
+      const id = await insertNewAssignment(req.body);
+      res.status(201).send({
+        id: id,
+        links: {
+          assignment: `/assignments/${id}`,
+          course: `/courses/${req.body.courseid}`
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Error inserting assignment into DB.  Please try again later."
       });
     }
+  } else {
+    res.status(400).send({
+      error: "The request body was either not present or did not contain a valid Assignment object."
+    });
+  }
   //} else {
-    //res.status(403).send({
-      //error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
-    //});
+  //res.status(403).send({
+  //error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
+  //});
   //}
 });
 
@@ -181,7 +230,7 @@ router.patch('/:id', async (req, res, next) => {
        */
       const id = parseInt(req.params.id);
       const existingAssignment = await getAssignmentById(id);
-      if(existingAssignment) {
+      if (existingAssignment) {
         //make sure courseid exists for existing assignment
         if (req.body.courseid === existingAssignment.courseid) {
           const updateSuccessful = await replaceAssignmentById(id, req.body);
@@ -208,12 +257,12 @@ router.patch('/:id', async (req, res, next) => {
       res.status(500).send({
         error: "Unable to update assignment.  Please try again later."
       });
-    } 
-  } else {
-      res.status(400).send({
-        error: "The request body was either not present or did not contain any fields related to Assignment objects."
-      });
     }
+  } else {
+    res.status(400).send({
+      error: "The request body was either not present or did not contain any fields related to Assignment objects."
+    });
+  }
 });
 
 /*
@@ -221,23 +270,23 @@ router.patch('/:id', async (req, res, next) => {
  */
 router.delete('/:id', async (req, res, next) => {
   //if (req.params.id == req.user || await checkAdmin(req.user)) {
-    try {
-      const deleteSuccessful = await deleteAssignmentById(parseInt(req.params.id));
-      if (deleteSuccessful) {
-        res.status(204).end();
-      } else {
-        next();
-      }
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({
-        error: "Unable to delete assignment.  Please try again later."
-      });
+  try {
+    const deleteSuccessful = await deleteAssignmentById(parseInt(req.params.id));
+    if (deleteSuccessful) {
+      res.status(204).end();
+    } else {
+      next();
     }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      error: "Unable to delete assignment.  Please try again later."
+    });
+  }
   //} else {
-    //res.status(403).send({
-      //error: "Request unauthorized."
-    //});
+  //res.status(403).send({
+  //error: "Request unauthorized."
+  //});
   //}
 });
 
