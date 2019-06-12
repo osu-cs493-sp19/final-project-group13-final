@@ -257,6 +257,9 @@ function getStudentsByCourseId(id) {
 }
 exports.getStudentsByCourseId = getStudentsByCourseId;
 
+/*
+ * Gets students by course ID with data good for CSV
+ */
 function getStudentsByCourseIdCsv(id) {
   return new Promise((resolve,reject) => {
     mysqlPool.query(
@@ -273,7 +276,8 @@ function getStudentsByCourseIdCsv(id) {
                 delete results[i].id;
                 delete results[i].password;
                 delete results[i].courseid;
-                delete results[i].role;              }
+                delete results[i].role;              
+              }
           }
           resolve(results);
         } 
@@ -282,3 +286,45 @@ function getStudentsByCourseIdCsv(id) {
   });
 }
 exports.getStudentsByCourseIdCsv = getStudentsByCourseIdCsv;
+
+/*
+ * Adds user to course roster.
+ */
+ function addToCourseRoster(id,sid) {
+  return new Promise((resolve,reject) => {
+    mysqlPool.query(
+      `INSERT INTO enrollment (courseid, studentid) VALUES (?, ?)`,
+      [id, sid],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      }
+      );
+
+  });
+ }
+ exports.addToCourseRoster = addToCourseRoster;
+
+ /*
+ * Deletes user from course roster.
+ */
+ function removeFromCourseRoster(id) {
+  return new Promise((resolve,reject) => {
+    mysqlPool.query(
+      `DELETE FROM enrollment WHERE studentid = ?`,
+      [id],
+      (err, results) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(results);
+        }
+      }
+      );
+
+  });
+ }
+ exports.removeFromCourseRoster = removeFromCourseRoster;
