@@ -8,7 +8,7 @@ const { extractValidFields } = require('../lib/validation');
 /*
  * Schema describing required/optional fields of a assignment object.
  */
-const AssignmentSchema = {,
+const AssignmentSchema = {
   courseid: { required: true },
   title: { required: true },
   points: { required: true },
@@ -16,30 +16,6 @@ const AssignmentSchema = {,
 };
 exports.AssignmentSchema = AssignmentSchema;
 
-
-/*
- * Executes a MySQL query to verfy whether a given user has already posted assignment
- * a specified course.  Returns a Promise that resolves to true if the
- * specified user has already posted the assignment the specified course or false
- * otherwise.
- */
- /*
-function hasUserAssignmentedCourse(userid, courseid) {
-  return new Promise((resolve, reject) => {
-    mysqlPool.query(
-      'SELECT COUNT(*) AS count FROM assignments WHERE userid = ? AND courseid = ?',
-      [ userid, courseid ],
-      (err, results) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(results[0].count > 0);
-        }
-      }
-    );
-  });
-}
-exports.hasUserAssignmentedCourse = hasUserAssignmentedCourse;*/
 
 /*
  * Executes a MySQL query to insert a new assignment into the database.  Returns

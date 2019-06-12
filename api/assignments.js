@@ -20,28 +20,17 @@ const {
  * Route to create a new assignment.
  */
 router.post('/', requireAuth, async (req, res) => {
-  if(req.params.id == req.user || await checkAdmin(req.user)) {
+  //if(req.params.id == req.user || await checkAdmin(req.user)) {
     if (validateAgainstSchema(req.body, AssignmentSchema)) {
       try {
-        /*
-         * Make sure the user is not trying to assignment the same business twice.
-         * If they're not, then insert their assignment into the DB.
-         */
-        const alreadyAssignmented = await hasUserAssignmentedBusiness(req.body.userid, req.body.businessid);
-        if (alreadyAssignmented) {
-          res.status(403).send({
-            error: "User has already posted a assignment of this business"
-          });
-        } else {
           const id = await insertNewAssignment(req.body);
           res.status(201).send({
             id: id,
             links: {
               assignment: `/assignments/${id}`,
-              business: `/businesses/${req.body.businessid}`
+              course: `/courses/${req.body.courseid}`
             }
           });
-        }
       } catch (err) {
         console.error(err);
         res.status(500).send({
@@ -50,14 +39,14 @@ router.post('/', requireAuth, async (req, res) => {
       }
     } else {
       res.status(400).send({
-        error: "Request body is not a valid assignment object."
+        error: "The request body was either not present or did not contain a valid Assignment object."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "Request unauthorized."
-    });
-  }
+  //} else {
+    //res.status(403).send({
+      //error: "The request was not made by an authenticated User satisfying the authorization criteria described above."
+    //});
+  //}
 });
 
 /*
@@ -83,60 +72,55 @@ router.get('/:id', async (req, res, next) => {
  * Route to update a assignment.
  */
 router.patch('/:id', async (req, res, next) => {
-  if (req.params.id == req.user || await checkAdmin(req.user)) {
-    if (validateAgainstSchema(req.body, AssignmentSchema)) {
-      try {
-        /*
-         * Make sure the updated assignment has the same courseID and instructorID as
-         * the existing assignment.  If it doesn't, respond with a 403 error.  If the
-         * assignment doesn't already exist, respond with a 404 error.
-         */
-        const id = parseInt(req.params.id);
-        const existingAssignment = await getAssignmentById(id);
-        if (existingAssignment) {
-          if (req.body.courseid === existingAssignment.courseid && req.body.instrid === existingAssignment.userid) {
-            const updateSuccessful = await replaceAssignmentById(id, req.body);
-            if (updateSuccessful) {
-              res.status(200).send({
-                links: {
-                  business: `/businesses/${req.body.businessid}`,
-                  assignment: `/assignments/${id}`
-                }
-              });
-            } else {
-              next();
-            }
-          } else {
-            res.status(403).send({
-              error: "Updated assignment must have the same businessID and userID"
+  if (req.body.courseid && (req.body.title || req.body.due || req.body.points)) {
+    try {
+      /*
+       * Make sure the courseid on the updated assigment is the same as
+       * the existing assignment. If it doesn't, respond with a 403 error.  If the
+       * assignment doesn't already exist, respond with a 404 error.
+       */
+      const id = parseInt(req.params.id);
+      const existingAssignment = await getAssignmentById(id);
+      if(existingAssignment) {
+        //make sure courseid exists for existing assignment
+        if (req.body.courseid === existingAssignment.courseid) {
+          const updateSuccessful = await replaceAssignmentById(id, req.body);
+          if (updateSuccessful) {
+            res.status(200).send({
+              links: {
+                course: `/courses/${req.body.courseid}`,
+                assignment: `/assignments/${id}`
+              }
             });
+          } else {
+            next();
           }
         } else {
-          next();
+          res.status(403).send({
+            error: "The request to this courseid is either unauthorized or does not exist."
+          })
         }
-      } catch (err) {
-        console.error(err);
-        res.status(500).send({
-          error: "Unable to update assignment.  Please try again later."
-        });
+      } else {
+        next();
       }
-    } else {
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({
+        error: "Unable to update assignment.  Please try again later."
+      });
+    } 
+  } else {
       res.status(400).send({
-        error: "Request body is not a valid assignment object."
+        error: "The request body was either not present or did not contain any fields related to Assignment objects."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "Request unauthorized."
-    });
-  }
 });
 
 /*
  * Route to delete a assignment.
  */
 router.delete('/:id', async (req, res, next) => {
-  if (req.params.id == req.user || await checkAdmin(req.user)) {
+  //if (req.params.id == req.user || await checkAdmin(req.user)) {
     try {
       const deleteSuccessful = await deleteAssignmentById(parseInt(req.params.id));
       if (deleteSuccessful) {
@@ -150,11 +134,11 @@ router.delete('/:id', async (req, res, next) => {
         error: "Unable to delete assignment.  Please try again later."
       });
     }
-  } else {
-    res.status(403).send({
-      error: "Request unauthorized."
-    });
-  }
+  //} else {
+    //res.status(403).send({
+      //error: "Request unauthorized."
+    //});
+  //}
 });
 
 module.exports = router;
