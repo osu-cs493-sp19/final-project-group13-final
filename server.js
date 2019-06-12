@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const api = require('./api');
 
 const app = express();
-const port = process.env.PORT || 6969;
+const port = process.env.PORT || 8000;
 
 /*
  * Morgan is a popular logger.
