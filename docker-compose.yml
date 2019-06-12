@@ -27,6 +27,12 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
+  redis-server:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6379:6379
+
 volumes:
   mysql-data:
     name: tarpaulin-mysql-data
