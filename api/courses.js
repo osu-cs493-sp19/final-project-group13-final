@@ -45,7 +45,6 @@ router.get('/', async (req, res) => {
     if (req.query.subject) {
       for(i=0;i<coursePage.courses.length;i++)
       {
-        console.log("yeet");
         if(coursePage.courses[i].subject != req.query.subject) 
         {
           delete coursePage.courses[i];
