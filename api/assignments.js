@@ -209,11 +209,10 @@ router.post('/', requireAuth, async (req, res) => {
   if (user.role == "admin") {
     userIsAdmin = true;
   } else if (user.role == "instructor") {
-    const assignment = await getAssignmentById(req.params.id);
-    const course = await getCourseDetailsById(assignment.courseid);
-    if (course.instructorid == user.id) {
-      userOwnsAssignment = true;
-    }
+      const course = await getCourseDetailsById(req.body.courseid);
+      if(req.body.courseid == course.id && course.instructorid == user.id) {
+        userOwnsAssignment = true;
+      }
   }
 
   if (!userIsAdmin && !userOwnsAssignment) {
@@ -276,7 +275,7 @@ router.get('/:id', async (req, res, next) => {
 /*
  * Route to update a assignment.
  */
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', requireAuth, async (req, res, next) => {
   const user = await getUserByEmail(req.userEmail, false);
   console.log(user);
   let userIsAdmin = false;
@@ -310,8 +309,8 @@ router.patch('/:id', async (req, res, next) => {
         const existingAssignment = await getAssignmentById(id);
         if (existingAssignment) {
           //make sure courseid exists for existing assignment
-          if (req.body.courseid === existingAssignment.courseid) {
-            const updateSuccessful = await replaceAssignmentById(id, req.body);
+          if (req.body.courseid == existingAssignment.courseid) {
+            const updateSuccessful = await updateAssignmentById(id, req.body);
             if (updateSuccessful) {
               res.status(200).send({
                 links: {
@@ -347,7 +346,7 @@ router.patch('/:id', async (req, res, next) => {
 /*
  * Route to delete a assignment.
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAuth, async (req, res, next) => {
   const user = await getUserByEmail(req.userEmail, false);
   console.log(user);
   let userIsAdmin = false;
